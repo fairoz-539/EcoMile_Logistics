@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoMile - Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold text-blue-600 mb-6 flex items-center">
+            <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+        </h1>
+        <div class="mb-6">
+            <a href="{{ url_for('index') }}" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Home
+            </a>
+            <a href="{{ url_for('logout') }}" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition ml-4">
+                <i class="fas fa-sign-out-alt mr-2"></i> Logout
+            </a>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4">Your EcoPoints</h2>
+            <p class="text-lg">You have <span class="font-bold text-blue-600">{{ points }} EcoPoints</span></p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4">Collaboration Requests</h2>
+            {% if requests %}
+                <ul class="space-y-4">
+                    {% for req in requests %}
+                        <li class="p-4 bg-gray-100 rounded-md">
+                            <p><strong>Competitor:</strong> {{ req.competitor_id }}</p>
+                            <p><strong>Goods:</strong> {{ req.goods }}</p>
+                            <p><strong>Service:</strong> {{ req.services }}</p>
+                            <p><strong>Routes:</strong> {{ req.routes }}</p>
+                            <p><strong>Status:</strong> {{ req.status }}</p>
+                            <p><strong>Sent On:</strong> {{ req.created_at }}</p>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No collaboration requests sent yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

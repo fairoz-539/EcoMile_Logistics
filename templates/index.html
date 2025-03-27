@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoMile - Last-Mile Delivery Planner</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+    <!-- Navbar -->
+    <div class="fixed top-0 left-0 w-full bg-white shadow-md z-50 flex justify-between items-center p-4">
+        <h1 class="text-xl font-semibold flex items-center">
+            <i class="fas fa-truck mr-2 text-blue-600"></i> EcoMile
+        </h1>
+        <div class="flex space-x-4">
+            <a href="{{ url_for('collaboration_hub') }}" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                <i class="fas fa-handshake mr-2"></i> Collaboration Hub
+            </a>
+            <a href="{{ url_for('dashboard') }}" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition">
+                <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+            </a>
+            <div class="relative">
+                <button id="voice-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                    <i class="fas fa-microphone mr-2"></i> Voice Input
+                    <span id="voice-loading" class="absolute right-2 top-2 hidden">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </span>
+                </button>
+                <div id="voice-status" class="absolute top-12 left-0 bg-white p-2 rounded-md shadow-md text-sm text-gray-600 hidden"></div>
+            </div>
+            <button id="launch-btn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition" disabled>
+                <i class="fas fa-rocket mr-2"></i> Launch Route
+            </button>
+            <label class="flex items-center space-x-2">
+                <span class="text-sm">EcoMode</span>
+                <input type="checkbox" id="eco-mode" class="toggle-checkbox">
+            </label>
+            <a href="{{ url_for('logout') }}" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition">
+                <i class="fas fa-sign-out-alt mr-2"></i> Logout
+            </a>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    <div class="pt-16">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="bg-{{ 'green' if category == 'success' else 'red' }}-100 border-l-4 border-{{ 'green' if category == 'success' else 'red' }}-500 text-{{ 'green' if category == 'success' else 'red' }}-700 p-4 mb-4">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex h-screen pt-16">
+        <!-- Sidebar -->
+        <div class="w-80 bg-white shadow-md p-6">
+            <h2 class="text-lg font-semibold mb-4 flex items-center">
+                <i class="fas fa-map-marker-alt mr-2 text-blue-600"></i> Delivery Stops
+            </h2>
+            <div id="address-list" class="space-y-4">
+                <div class="address-entry">
+                    <label class="block text-sm text-gray-600">Starting Point</label>
+                    <input type="text" class="address-input w-full p-2 bg-gray-100 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Enter starting address" required>
+                </div>
+                <div class="address-entry">
+                    <label class="block text-sm text-gray-600">Delivery 1</label>
+                    <input type="text" class="address-input w-full p-2 bg-gray-100 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Enter delivery address" required>
+                </div>
+            </div>
+            <button id="add-address" class="mt-4 w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                <i class="fas fa-plus mr-2"></i> Add Delivery
+            </button>
+        </div>
+
+        <!-- Main Area -->
+        <div class="flex-1 p-6 overflow-y-auto">
+            <h2 style="text-align:center;font-size: 30px;margin: 15px;font-weight: bold">
+                <i class="fas fa-map-marker-alt mr-2 text-blue-600"></i> Logistics Analytics Dashboard
+            </h2>
+            <hr><hr>
+            <div class="cont">
+                <!-- Analytics Cards -->
+                <div id="analytics-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-2 gap-4 mb-6">
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-road text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">Total Distance</h3>
+                                <p id="total-distance" class="text-xl font-bold text-gray-800">0 km</p>
+                            </div>
+                            <span id="distance-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-leaf text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">CO2 Emissions</h3>
+                                <p id="total-co2" class="text-xl font-bold text-gray-800">0 g</p>
+                            </div>
+                            <span id="co2-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-gas-pump text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">Fuel Consumption</h3>
+                                <p id="fuel-consumption" class="text-xl font-bold text-gray-800">0 liters</p>
+                            </div>
+                            <span id="fuel-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-save text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">Fuel Savings</h3>
+                                <p id="fuel-savings" class="text-xl font-bold text-gray-800">0 liters</p>
+                            </div>
+                            <span id="fuel-savings-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-clock text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">Total Delivery Time</h3>
+                                <p id="total-time" class="text-xl font-bold text-gray-800">0 mins</p>
+                            </div>
+                            <span id="time-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-dollar-sign text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">Cost Savings</h3>
+                                <p id="cost-savings" class="text-xl font-bold text-gray-800">$0</p>
+                            </div>
+                            <span id="cost-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-traffic-light text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">Traffic Delay</h3>
+                                <p id="traffic-impact" class="text-xl font-bold text-gray-800">0 mins</p>
+                            </div>
+                            <span id="traffic-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-leaf text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">CO2 Savings vs Industry</h3>
+                                <p id="co2-savings" class="text-xl font-bold text-gray-800">0 g</p>
+                            </div>
+                            <span id="co2-savings-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-tachometer-alt text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">Efficiency Score</h3>
+                                <p id="efficiency-score" class="text-xl font-bold text-gray-800">0/100</p>
+                            </div>
+                            <span id="efficiency-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-leaf text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">Sustainability Score</h3>
+                                <p id="sustainability-score" class="text-xl font-bold text-gray-800">0/100</p>
+                            </div>
+                            <span id="sustainability-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-clock text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">Avg Delivery Time</h3>
+                                <p id="avg-delivery-time" class="text-xl font-bold text-gray-800">0 mins</p>
+                            </div>
+                            <span id="avg-time-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="flex items-center">
+                            <i class="fas fa-user text-blue-600 text-xl mr-3"></i>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-600">Driver Performance</h3>
+                                <p id="driver-performance" class="text-xl font-bold text-gray-800">0/100</p>
+                            </div>
+                            <span id="driver-trend" class="text-sm text-gray-500">0%</span>
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- Traffic Alert -->
+                <div id="traffic-alert" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 hidden">
+                    <p class="font-bold">Traffic Alert</p>
+                    <p id="traffic-message">Heavy traffic detected on your route. Would you like to re-route?</p>
+                    <button id="reroute-btn" class="mt-2 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition">
+                        Re-Route
+                    </button>
+                </div>
+    
+                <!-- Safety Alert -->
+                <div id="safety-alert" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 hidden">
+                    <p class="font-bold">Safety Alert</p>
+                    <p id="safety-message">Risky area detected on your route.</p>
+                </div>
+    
+                <!-- Map -->
+                <div class="mapDiv">
+                    <h2 class="text-lg font-semibold mb-4" style="text-align:center">
+                        <i class="fas fa-map-marker-alt mr-2 text-blue-600"></i> Optimized Route for You!
+                    </h2>
+                    <div id="map" class="h-[60vh] rounded-lg shadow-md relative z-10"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Competitor Modal -->
+    <div id="competitor-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <p class="text-lg text-gray-800 mb-4">See competitors’ trucks on this route?</p>
+            <div class="flex space-x-4">
+                <button id="competitor-ok" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                    <i class="fas fa-truck mr-2"></i> OK
+                </button>
+                <button id="competitor-skip" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-500 transition">
+                    <i class="fas fa-times mr-2"></i> Skip
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collaboration Modal -->
+    <div id="collaboration-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg relative">
+            <button id="collaboration-close" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800">
+                <i class="fas fa-times"></i>
+            </button>
+            <p id="collaboration-text" class="text-lg text-gray-800 mb-4"></p>
+            <div class="flex space-x-4">
+                <button id="collaboration-proceed" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition">
+                    <i class="fas fa-handshake mr-2"></i> Proceed
+                </button>
+                <button id="collaboration-cancel" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-500 transition">
+                    <i class="fas fa-times mr-2"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Notification Modal -->
+    <div id="notification-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <p class="text-lg text-gray-800 mb-4">Send ETA notification to customer?</p>
+            <div class="flex space-x-4">
+                <button id="notify-ok" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                    <i class="fas fa-envelope mr-2"></i> Send
+                </button>
+                <button id="notify-skip" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-500 transition">
+                    <i class="fas fa-times mr-2"></i> Skip
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Pass route data to JavaScript
+        const routeData = {{ route_data | tojson | safe }};
+        if (routeData) {
+            window.onload = function() {
+                displayRoute(routeData);
+            };
+        }
+    </script>
+</body>
+</html>

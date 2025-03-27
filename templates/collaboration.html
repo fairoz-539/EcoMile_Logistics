@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoMile - Collaboration Hub</title>
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold text-blue-600 mb-6 flex items-center">
+            <i class="fas fa-handshake mr-2"></i> Collaboration Hub
+        </h1>
+        <div class="mb-6">
+            <a href="{{ url_for('index') }}" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Home
+            </a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Goods Selection -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">What goods are you delivering?</h2>
+                <div id="goods-tags" class="flex flex-wrap gap-2">
+                    <button class="tag px-3 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-blue-600 hover:text-white transition" data-value="Electronics">Electronics</button>
+                    <button class="tag px-3 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-blue-600 hover:text-white transition" data-value="Groceries">Groceries</button>
+                    <button class="tag px-3 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-blue-600 hover:text-white transition" data-value="Clothing">Clothing</button>
+                    <button class="tag px-3 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-blue-600 hover:text-white transition" data-value="Furniture">Furniture</button>
+                </div>
+            </div>
+            <!-- Service Details -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Service Details</h2>
+                <select id="services" class="w-full p-2 bg-gray-100 text-gray-600 rounded-md focus:ring-2 focus:ring-blue-500">
+                    <option value="Same-Day">Same-Day Delivery</option>
+                    <option value="Scheduled">Scheduled Delivery</option>
+                    <option value="Express">Express Delivery</option>
+                </select>
+            </div>
+            <!-- Routes -->
+            <div class="bg-white p-6 rounded-lg shadow-md md:col-span-2">
+                <h2 class="text-xl font-semibold mb-4">Routes to Share</h2>
+                <textarea id="routes" class="w-full p-2 bg-gray-100 text-gray-600 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Enter route details or leave as is to share the current route"></textarea>
+            </div>
+        </div>
+        <button id="send-offer" class="mt-6 w-full py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition">
+            <i class="fas fa-paper-plane mr-2"></i> Send Offer
+        </button>
+
+        <!-- Leaderboard Section -->
+        <div class="mt-6 bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4">EcoPoints Leaderboard</h2>
+            <ul id="leaderboard" class="space-y-2">
+                <!-- Leaderboard entries will be populated here -->
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Handle tag selection
+        const tags = document.querySelectorAll('.tag');
+        const selectedGoods = [];
+        tags.forEach(tag => {
+            tag.addEventListener('click', () => {
+                const value = tag.getAttribute('data-value');
+                if (selectedGoods.includes(value)) {
+                    selectedGoods.splice(selectedGoods.indexOf(value), 1);
+                    tag.classList.remove('bg-blue-600', 'text-white');
+                } else {
+                    selectedGoods.push(value);
+                    tag.classList.add('bg-blue-600', 'text-white');
+                }
+            });
+        });
+
+        // Handle form submission
+        document.getElementById('send-offer').addEventListener('click', () => {
+            const services = document.getElementById('services').value;
+            const routes = document.getElementById('routes').value;
+            // Get competitor_id from URL query parameter (if coming from modal)
+            const urlParams = new URLSearchParams(window.location.search);
+            const competitorId = urlParams.get('competitor_id') || 'competitor_1';
+
+            fetch('/submit_collaboration', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ goods: selectedGoods, services, routes, competitor_id: competitorId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    alert(data.message);
+                    window.location.href = '/';  // Redirect back to main page
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to send offer.');
+            });
+        });
+
+        // Fetch and display leaderboard
+        fetch('/leaderboard')
+            .then(response => response.json())
+            .then(data => {
+                const leaderboard = document.getElementById('leaderboard');
+                data.leaderboard.forEach(entry => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between p-2 bg-gray-100 rounded-md';
+                    li.innerHTML = `<span>${entry.user}</span><span>${entry.points} EcoPoints</span>`;
+                    leaderboard.appendChild(li);
+                });
+            })
+            .catch(error => console.error('Error fetching leaderboard:', error));
+    </script>
+</body>
+</html>

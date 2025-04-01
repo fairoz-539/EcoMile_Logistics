@@ -1,7 +1,7 @@
 import sqlite3
-
+DATABASE_PATH = '/tmp/database.db'  # Always use /tmp on serverless platforms
 def init_db_with_user():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     # Create tables (same as in app.py)
     c.execute('''CREATE TABLE IF NOT EXISTS users (

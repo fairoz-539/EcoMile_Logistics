@@ -11,9 +11,10 @@ app.secret_key = 'your-secret-key'  # Replace with a secure key for production
 # Configure OpenRouteService client
 ors_client = openrouteservice.Client(key='5b3ce3597851110001cf624882e76173985f4cfaa6282130d090ef18')  # Replace with your API key
 
+DATABASE_PATH = '/tmp/database.db'  # Always use /tmp on serverless platforms
 # Database setup with migration
 def init_db():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     # Users table
     c.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -89,6 +90,7 @@ def login_required(f):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    init_db()
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
